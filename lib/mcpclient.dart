@@ -533,7 +533,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 child: SingleChildScrollView(
                   controller: _logScrollController,
-                  child: Text(appState.log),
+                  // selectable so we can copy/paste out bits of response or logs
+                  child: SelectableText(appState.log),
                 ),
               ),
             ),
