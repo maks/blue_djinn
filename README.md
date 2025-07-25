@@ -1,6 +1,6 @@
 # Dauillama
 
-<img src="assets/app_icons/dauillamma.jpg" width="720">
+<img src="assets/app_icons/blue-djinn.png" width="720">
 
 a DArt(Flutter) UI for local [Ollama](https://ollama.com) API
 
