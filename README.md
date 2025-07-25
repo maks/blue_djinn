@@ -1,6 +1,6 @@
 # Blue Djinn
 
-<img src="assets/app_icons/blue_djinn.jpg" width="720">
+<img src="assets/app_icons/blue-djinn.png" width="720">
 
 A Dart(Flutter) tool for software development focused on using local LLMs via [Ollama](https://ollama.com) API. This started as a fork of [dauillamma](https://github.com/rxlabz/dauillama).
 
