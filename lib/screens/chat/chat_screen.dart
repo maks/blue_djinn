@@ -132,7 +132,7 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
             builder: (final context, currentModel, _) => currentModel != null
                 ? Row(
                     children: [
-                      Text(
+                      SelectableText(
                         currentModel.model ?? '/',
                         style: const TextStyle(color: Colors.blueGrey),
                       ),
