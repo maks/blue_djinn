@@ -123,7 +123,7 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Text(
-              'DauiLlama',
+              'Blue Djinn',
               style: TextStyle(color: Colors.blueGrey.shade700),
             ),
           ),
