@@ -16,6 +16,8 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final db = await initDB();
 
+  debugPrint("Using Ollama URL: ${Platform.environment['OLLAMA_BASE_URL']}");
+
   runApp(
     RootProvider(
       prefs: prefs,

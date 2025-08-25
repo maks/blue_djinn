@@ -142,7 +142,7 @@ class ChatController {
       await for (final chunk in streamResponse) {
         lastReply.value = (
           lastReply.value.$1,
-          '${lastReply.value.$2}${chunk.message?.content ?? ''}'
+          '${lastReply.value.$2}${chunk.message.content}'
         );
 
         scrollToEnd();

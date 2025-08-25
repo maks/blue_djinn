@@ -1,8 +1,8 @@
-# Dauillama
+# Blue Djinn
 
 <img src="assets/app_icons/blue-djinn.png" width="720">
 
-a DArt(Flutter) UI for local [Ollama](https://ollama.com) API
+A Dart(Flutter) tool for software development focused on using local LLMs via [Ollama](https://ollama.com) API. This started as a fork of [dauillamma](https://github.com/rxlabz/dauillama).
 
 - uses [Ollama Dart](https://pub.dev/packages/ollama_dart)
 
@@ -14,7 +14,7 @@ The [OllamaClient](https://pub.dev/documentation/ollama_dart/latest/ollama_dart/
 
 ## Platforms
 - [x] Macos
-- [x] Windows
+- [ ] Windows
 - [x] Linux
 - [ ] Web
 

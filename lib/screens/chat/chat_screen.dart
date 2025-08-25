@@ -123,7 +123,7 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Text(
-              'DauiLlama',
+              'Blue Djinn',
               style: TextStyle(color: Colors.blueGrey.shade700),
             ),
           ),
@@ -132,7 +132,7 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
             builder: (final context, currentModel, _) => currentModel != null
                 ? Row(
                     children: [
-                      Text(
+                      SelectableText(
                         currentModel.model ?? '/',
                         style: const TextStyle(color: Colors.blueGrey),
                       ),
