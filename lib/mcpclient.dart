@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:ollama_dart/ollama_dart.dart';
 import 'package:provider/provider.dart';
 
+const MAX_TOOLCALL_ROUNDS = 5;
+
 // --- AppState ChangeNotifier ---
 // Manages all state and business logic for the MCP and Ollama clients.
 class AppState extends ChangeNotifier {
@@ -178,6 +180,7 @@ class AppState extends ChangeNotifier {
   }
 
   /// Sends a prompt to Ollama, allowing it to use the MCP tools natively.
+  /// Supports multiple rounds of tool calls.
   ///
   /// [availableMcpTools] must be a list of `mcp.Tool` objects, for example,
   /// from `_serverConnection.listTools()`.
@@ -208,85 +211,95 @@ class AppState extends ChangeNotifier {
 
     _logMessage('Providing ${ollamaTools.length} tool(s) to the LLM.');
 
-    // 2. Make the FIRST call to the LLM with the user's prompt and the tools.
-    final userMessage = Message(role: MessageRole.user, content: prompt);
-    final initialRequest = GenerateChatCompletionRequest(
-      model: modelName,
-      messages: [userMessage],
-      tools: ollamaTools,
-      think: false,
-    );
+    // 2. Initialize the conversation history.
+    final messages = [Message(role: MessageRole.user, content: prompt)];
 
     try {
-      final res1 =
-          await _ollamaClient!.generateChatCompletion(request: initialRequest);
-      final messageFromLlm = res1.message;
+      // 3. Loop to handle multiple rounds of tool calls.
+      for (int i = 0; i < MAX_TOOLCALL_ROUNDS; i++) {
+        // Limit to 5 rounds to prevent infinite loops
+        final request = GenerateChatCompletionRequest(
+          model: modelName,
+          messages: messages,
+          tools: ollamaTools,
+          think: false,
+        );
 
-      // 3. Check if the LLM's response contains a tool call.
-      if (messageFromLlm.toolCalls == null ||
-          messageFromLlm.toolCalls!.isEmpty) {
-        // No tool call was made, just log the direct response.
-        _logMessage('LLM responded directly:');
-        _logMessage(messageFromLlm.content);
-        _logMessage('--- End of Ollama Response ---');
-        return;
+        final res =
+            await _ollamaClient!.generateChatCompletion(request: request);
+        final messageFromLlm = res.message;
+        messages.add(messageFromLlm); // Add LLM's response to history
+
+        // 4. Check if the LLM's response contains tool calls.
+        if (messageFromLlm.toolCalls == null ||
+            messageFromLlm.toolCalls!.isEmpty) {
+          // No more tool calls, this is the final answer.
+          _logMessage('🤖 LLM final response:');
+          _logMessage(messageFromLlm.content);
+          _logMessage('--- End of Ollama Response ---');
+          return; // Exit the loop and function.
+        }
+
+        // 5. The LLM wants to use one or more tools.
+        // The ollama API supports parallel tool calls, so we process all of them.
+        final toolCallFutures = messageFromLlm.toolCalls!.map((toolCall) async {
+          _lastToolCall = toolCall;
+          notifyListeners(); // Update UI to show the latest tool call
+
+          final toolName = toolCall.function?.name;
+          final toolArgs = toolCall.function?.arguments;
+
+          _logMessage(
+            '💡 LLM wants to call tool: `$toolName` with args: $toolArgs',
+          );
+
+          if (toolName == null) {
+            return Message(
+              role: MessageRole.tool,
+              content: jsonEncode({'error': 'Missing tool name from LLM'}),
+            );
+          }
+
+          // Execute the tool call via MCP.
+          try {
+            final mcpToolResult = await _serverConnection!.callTool(
+              mcp.CallToolRequest(name: toolName, arguments: toolArgs),
+            );
+
+            if (mcpToolResult.isError ?? false) {
+              _logMessage(
+                  '❌ MCP tool execution failed: ${mcpToolResult.content}');
+              return Message(
+                role: MessageRole.tool,
+                content: jsonEncode({'error': mcpToolResult.content}),
+              );
+            }
+
+            _logMessage(
+              '✅ MCP tool executed successfully. Result: ${mcpToolResult.content}',
+            );
+            return Message(
+              role: MessageRole.tool,
+              content: jsonEncode(mcpToolResult.content),
+            );
+          } catch (e) {
+            _logMessage('❌ ERROR calling tool `$toolName`: $e');
+            return Message(
+              role: MessageRole.tool,
+              content: jsonEncode({'error': 'Exception during tool call: $e'}),
+            );
+          }
+        });
+
+        // 6. Wait for all tool calls to execute and add their results to the history.
+        final toolResults = await Future.wait(toolCallFutures);
+        messages.addAll(toolResults);
+
+        _logMessage(
+            'Sending ${toolResults.length} tool result(s) back to LLM...');
+        // The loop will now continue for the next turn.
       }
-
-      // 4. The LLM wants to use a tool.
-      _lastToolCall = messageFromLlm.toolCalls!.first;
-      notifyListeners();
-
-      final toolCall = messageFromLlm
-          .toolCalls!.first; // Handling one tool call for simplicity
-      final toolName = toolCall.function?.name;
-      final toolArgs = toolCall.function?.arguments;
-
-      _logMessage(
-        '💡 LLM wants to call tool: `$toolName` with args: $toolArgs',
-      );
-
-      if (toolName == null) {
-        throw Exception('missing tool name from LLM response');
-      }
-
-      // 5. Execute the tool call using the MCP connection.
-      final mcpToolResult = await _serverConnection!.callTool(
-        mcp.CallToolRequest(name: toolName, arguments: toolArgs),
-      );
-
-      if (mcpToolResult.isError ?? false) {
-        _logMessage('❌ MCP tool execution failed: ${mcpToolResult.content}');
-        return;
-      }
-
-      _logMessage(
-        '✅ MCP tool executed successfully. Result: ${mcpToolResult.content}',
-      );
-
-      // 6. Make the SECOND call to the LLM, providing the tool's result.
-      final toolResultMessage = Message(
-        role: MessageRole.tool,
-        content: jsonEncode(mcpToolResult.content), // Result must be a string
-      );
-
-      final followUpRequest = GenerateChatCompletionRequest(
-        model: modelName,
-        messages: [
-          userMessage, // Original user prompt
-          messageFromLlm, // LLM's first response (the tool call)
-          toolResultMessage, // The result from our tool
-        ],
-        think: false,
-      );
-
-      _logMessage('Sending tool result back to LLM for final answer...');
-      final res2 =
-          await _ollamaClient!.generateChatCompletion(request: followUpRequest);
-
-      // 7. Log the final, natural-language answer.
-      _logMessage('🤖 LLM final response:');
-      _logMessage(res2.message.content);
-      _logMessage('--- End of Ollama Response ---');
+      _logMessage('Reached max tool call rounds (5). Ending conversation.');
     } catch (e) {
       _logMessage('❌ ERROR during tool-calling flow: $e');
     } finally {
