@@ -27,6 +27,7 @@ class AppState extends ChangeNotifier {
   String _log = '';
   List<mcp.Tool> _availableTools = [];
   ToolCall? _lastToolCall;
+  String modelName = 'gpt-oss:20b';
 
   // Public Getters for UI
   bool get isConnecting => _isConnecting;
@@ -185,7 +186,6 @@ class AppState extends ChangeNotifier {
   /// from `_serverConnection.listTools()`.
   Future<void> sendPromptWithNativeToolCalling(
     String prompt,
-    String modelName,
     List<mcp.Tool> availableMcpTools,
   ) async {
     if (!_isConnected || _ollamaClient == null || _serverConnection == null) {
@@ -296,42 +296,41 @@ class AppState extends ChangeNotifier {
   }
 
   // Sends a prompt using **Streaming** to the Ollama API
-  Future<void> sendStreamingPromptToOllama(String prompt) async {
-    if (!_isConnected || _ollamaClient == null) {
-      _logMessage('Not connected. Cannot query Ollama.');
-      return;
-    }
+  // Future<void> sendStreamingPromptToOllama(String prompt) async {
+  //   if (!_isConnected || _ollamaClient == null) {
+  //     _logMessage('Not connected. Cannot query Ollama.');
+  //     return;
+  //   }
 
-    _logMessage('\n--- Direct Ollama Query ---');
-    _logMessage('Sending prompt to Ollama: "$prompt"');
-    try {
-      final request = GenerateCompletionRequest(
-        model: 'qwen3:30b-a3b', // hardcoded model name for now
-        prompt: prompt,
-      );
-      final stream = _ollamaClient!.generateCompletionStream(request: request);
+  //   _logMessage('\n--- Direct Ollama Query ---');
+  //   _logMessage('Sending prompt to Ollama: "$prompt"');
+  //   try {
+  //     final request = GenerateCompletionRequest(
+  //       model: modelName,
+  //       prompt: prompt,
+  //     );
 
-      _logMessage('Ollama response:');
-      var responseBuffer = '';
-      await for (final res in stream) {
-        final textChunk = res.response ?? '';
-        responseBuffer += textChunk;
-        // Log in chunks to avoid flooding the UI with updates
-        if (responseBuffer.contains('\n') || responseBuffer.length > 80) {
-          _logMessage(responseBuffer.trim());
-          responseBuffer = '';
-        }
-      }
-      // Log any remaining text in the buffer
-      if (responseBuffer.isNotEmpty) {
-        _logMessage(responseBuffer.trim());
-      }
-      _logMessage('--- End of Ollama Response ---');
-    } catch (e) {
-      _logMessage('❌ ERROR querying Ollama: $e');
-    }
-    notifyListeners();
-  }
+  //     _logMessage('Ollama response:');
+  //     var responseBuffer = '';
+  //     await for (final res in stream) {
+  //       final textChunk = res.response ?? '';
+  //       responseBuffer += textChunk;
+  //       // Log in chunks to avoid flooding the UI with updates
+  //       if (responseBuffer.contains('\n') || responseBuffer.length > 80) {
+  //         _logMessage(responseBuffer.trim());
+  //         responseBuffer = '';
+  //       }
+  //     }
+  //     // Log any remaining text in the buffer
+  //     if (responseBuffer.isNotEmpty) {
+  //       _logMessage(responseBuffer.trim());
+  //     }
+  //     _logMessage('--- End of Ollama Response ---');
+  //   } catch (e) {
+  //     _logMessage('❌ ERROR querying Ollama: $e');
+  //   }
+  //   notifyListeners();
+  // }
 
   @override
   void dispose() {
@@ -380,7 +379,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final _commandController =
       TextEditingController(text: 'dart run mcp_server/bin/mcp_server.dart');
   final _ollamaUrlController = TextEditingController(
-    text: 'http://192.168.1.148:11434/api',
+    text: Platform.environment['OLLAMA_BASE_URL'],
   );
   final _logScrollController = ScrollController();
   final _toolArgsController = TextEditingController(text: '{"path": "."}');
@@ -443,6 +442,19 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     enabled: !appState.isConnected && !appState.isConnecting,
                   ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    initialValue: appState.modelName,
+                    decoration: const InputDecoration(
+                      labelText: 'Ollama Model Name',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      appState.modelName = value;
+                      appState.notifyListeners();
+                    },
+                    enabled: !appState.isConnected && !appState.isConnecting,
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: appState.isConnecting
@@ -503,7 +515,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         // appStateNotifier.sendStreamingPromptToOllama(value);
                         appStateNotifier.sendPromptWithNativeToolCalling(
                           value,
-                          'qwen3:30b-a3b',
                           appState.availableTools,
                         );
                         _ollamaPromptController.clear();
@@ -520,7 +531,6 @@ class _MyHomePageState extends State<MyHomePage> {
                             // );
                             appStateNotifier.sendPromptWithNativeToolCalling(
                               _ollamaPromptController.text,
-                              'qwen3:30b-a3b',
                               appState.availableTools,
                             );
                             _ollamaPromptController.clear();
