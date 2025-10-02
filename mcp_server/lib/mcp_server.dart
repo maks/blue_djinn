@@ -14,6 +14,8 @@ base class MCPServerWithTools extends MCPServer with ToolsSupport {
       ) {
     registerTool(concatTool, _concat);
     registerTool(listFilesTool, _listFiles);
+    // Register the new readFile tool
+    registerTool(readFileTool, _readFile);
   }
 
   /// A tool that concatenates a list of strings.
@@ -45,6 +47,21 @@ base class MCPServerWithTools extends MCPServer with ToolsSupport {
     ),
   );
 
+  /// A tool that reads the contents of a file.
+  final readFileTool = Tool(
+    name: 'readfile',
+    description:
+        'returns the contents of a text file specified by a path relative to the current directory',
+    inputSchema: Schema.object(
+      properties: {
+        'path': Schema.string(
+          description: 'The relative filesystem path to read from',
+        ),
+      },
+      required: ['path'],
+    ),
+  );
+
   /// The implementation of the `concat` tool.
   FutureOr<CallToolResult> _concat(CallToolRequest request) => CallToolResult(
     content: [
@@ -56,7 +73,7 @@ base class MCPServerWithTools extends MCPServer with ToolsSupport {
     ],
   );
 
-  /// The implementation of the `concat` tool.
+  /// The implementation of the `listfiles` tool.
   Future<CallToolResult> _listFiles(CallToolRequest request) async {
     final path = request.arguments?.isNotEmpty ?? false
         ? request.arguments!['path'] as String
@@ -66,5 +83,22 @@ base class MCPServerWithTools extends MCPServer with ToolsSupport {
       fileList.add(f);
     }
     return CallToolResult(content: [TextContent(text: (fileList.join(" ")))]);
+  }
+
+  /// The implementation of the `readfile` tool.
+  Future<CallToolResult> _readFile(CallToolRequest request) async {
+    final path = request.arguments!['path'] as String;
+    try {
+      final contents = await File(path).readAsString();
+      return CallToolResult(content: [TextContent(text: contents)]);
+    } catch (e) {
+      return CallToolResult(
+        content: [
+          TextContent(
+            text: 'Error reading file "$path": ${e.runtimeType} - $e',
+          ),
+        ],
+      );
+    }
   }
 }
