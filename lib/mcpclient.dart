@@ -177,10 +177,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-// Note: This is a conceptual function to be placed inside your AppState class.
-// It assumes `_ollamaClient`, `_serverConnection`, `_logMessage`, and other
-// necessary state variables are available class members.
-
   /// Sends a prompt to Ollama, allowing it to use the MCP tools natively.
   ///
   /// [availableMcpTools] must be a list of `mcp.Tool` objects, for example,
@@ -218,6 +214,7 @@ class AppState extends ChangeNotifier {
       model: modelName,
       messages: [userMessage],
       tools: ollamaTools,
+      think: false,
     );
 
     try {
@@ -279,6 +276,7 @@ class AppState extends ChangeNotifier {
           messageFromLlm, // LLM's first response (the tool call)
           toolResultMessage, // The result from our tool
         ],
+        think: false,
       );
 
       _logMessage('Sending tool result back to LLM for final answer...');
@@ -452,7 +450,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     onChanged: (value) {
                       appState.modelName = value;
-                      appState.notifyListeners();
                     },
                     enabled: !appState.isConnected && !appState.isConnecting,
                   ),

@@ -72,7 +72,6 @@ final lightAppTheme = baseLightTheme.copyWith(
       TextSelectionThemeData(selectionColor: Colors.cyan.shade50),
   dividerColor: const Color(0xFF90A4AE),
   cardColor: Colors.white,
-  dialogBackgroundColor: Colors.grey.shade300,
   canvasColor: Colors.blueGrey.shade100,
   textTheme: baseLightTheme.textTheme,
   appBarTheme: lightTheme.appBarTheme.copyWith(
@@ -125,7 +124,6 @@ final baseDarkTheme = ThemeData.from(
 final darkAppTheme = baseDarkTheme.copyWith(
   cardColor: Colors.blueGrey.shade800,
   canvasColor: blueGrey1100,
-  dialogBackgroundColor: blueGrey950,
   dividerColor: Colors.blueGrey.shade700,
   textSelectionTheme:
       TextSelectionThemeData(selectionColor: Colors.cyan.shade900),
