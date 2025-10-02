@@ -10,7 +10,7 @@ base class MCPServerWithTools extends MCPServer with ToolsSupport {
           name: 'An example dart server with tools support',
           version: '0.1.0',
         ),
-        instructions: 'Just list and call the tools :D',
+        instructions: 'Just list and call the tools',
       ) {
     registerTool(concatTool, _concat);
     registerTool(listFilesTool, _listFiles);
@@ -33,7 +33,8 @@ base class MCPServerWithTools extends MCPServer with ToolsSupport {
 
   final listFilesTool = Tool(
     name: 'listfiles',
-    description: 'returns a list of file names from the given filesystem path',
+    description:
+        'returns a list of file names from the given filesystem path, defaults to current directory if no path is supplied',
     inputSchema: Schema.object(
       properties: {
         'path': Schema.string(
@@ -57,7 +58,9 @@ base class MCPServerWithTools extends MCPServer with ToolsSupport {
 
   /// The implementation of the `concat` tool.
   Future<CallToolResult> _listFiles(CallToolRequest request) async {
-    final path = request.arguments!['path'] as String;
+    final path = request.arguments?.isNotEmpty ?? false
+        ? request.arguments!['path'] as String
+        : ".";
     final fileList = [];
     await for (final f in Directory(path).list()) {
       fileList.add(f);

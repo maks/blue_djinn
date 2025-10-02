@@ -26,12 +26,14 @@ class AppState extends ChangeNotifier {
   bool _isConnected = false;
   String _log = '';
   List<mcp.Tool> _availableTools = [];
+  ToolCall? _lastToolCall;
 
   // Public Getters for UI
   bool get isConnecting => _isConnecting;
   bool get isConnected => _isConnected;
   String get log => _log;
   List<mcp.Tool> get availableTools => _availableTools;
+  ToolCall? get lastToolCall => _lastToolCall;
 
   // --- Core Logic ---
 
@@ -190,6 +192,10 @@ class AppState extends ChangeNotifier {
       _logMessage('Not connected. Cannot process tool-enabled prompt.');
       return;
     }
+
+    _lastToolCall = null;
+    notifyListeners();
+
     _logMessage('\n--- Ollama Query with Native Tool Calling ---');
 
     // 1. Convert MCP tools to the format Ollama Dart SDK expects.
@@ -229,6 +235,9 @@ class AppState extends ChangeNotifier {
       }
 
       // 4. The LLM wants to use a tool.
+      _lastToolCall = messageFromLlm.toolCalls!.first;
+      notifyListeners();
+
       final toolCall = messageFromLlm
           .toolCalls!.first; // Handling one tool call for simplicity
       final toolName = toolCall.function?.name;
@@ -475,6 +484,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   const SizedBox(height: 16),
                   if (appState.availableTools.isNotEmpty)
                     ..._buildToolButtons(appState, appStateNotifier),
+                  _buildToolCallIndicator(appState),
                   const Divider(height: 32),
                   Text(
                     'Direct Ollama Query',
@@ -573,5 +583,38 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
     ];
+  }
+
+  Widget _buildToolCallIndicator(AppState appState) {
+    if (appState.lastToolCall == null) {
+      return const SizedBox.shrink();
+    }
+
+    final toolCall = appState.lastToolCall!;
+    final function = toolCall.function;
+
+    return Card(
+      margin: const EdgeInsets.only(top: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '💡 Tool Call Received',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const Divider(),
+            ListTile(
+              title: Text(function?.name ?? 'Unknown Tool'),
+              subtitle: Text(
+                'Args: ${function?.arguments.toString() ?? "{}"}',
+              ),
+              dense: true,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
