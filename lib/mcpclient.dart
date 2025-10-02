@@ -27,7 +27,8 @@ class AppState extends ChangeNotifier {
   String _log = '';
   List<mcp.Tool> _availableTools = [];
   ToolCall? _lastToolCall;
-  String modelName = 'gpt-oss:20b';
+  // String modelName = 'llama3.1:8b';
+  String modelName = 'qwen3:30b-a3b';
 
   // Public Getters for UI
   bool get isConnecting => _isConnecting;
@@ -285,7 +286,7 @@ class AppState extends ChangeNotifier {
           await _ollamaClient!.generateChatCompletion(request: followUpRequest);
 
       // 7. Log the final, natural-language answer.
-      _logMessage('LLM final response:');
+      _logMessage('🤖 LLM final response:');
       _logMessage(res2.message.content);
       _logMessage('--- End of Ollama Response ---');
     } catch (e) {
