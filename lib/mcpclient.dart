@@ -29,6 +29,7 @@ class AppState extends ChangeNotifier {
   String _log = '';
   List<mcp.Tool> _availableTools = [];
   ToolCall? _lastToolCall;
+  List<Message> _conversationHistory = [];
   // String modelName = 'llama3.1:8b';
   String modelName = 'qwen3:30b-a3b';
 
@@ -135,6 +136,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearConversation() {
+    _logMessage('--- New Conversation ---');
+    _conversationHistory = [];
+    notifyListeners();
+  }
+
   // Fetches the list of tools from the connected server
   Future<void> listTools() async {
     if (!_isConnected || _serverConnection == null) {
@@ -194,9 +201,8 @@ class AppState extends ChangeNotifier {
     }
 
     _lastToolCall = null;
-    notifyListeners();
 
-    _logMessage('\n--- Ollama Query with Native Tool Calling ---');
+    _logMessage('\n--- User Prompt: $prompt ---');
 
     // 1. Convert MCP tools to the format Ollama Dart SDK expects.
     final ollamaTools = availableMcpTools.map((mcp.Tool mcpTool) {
@@ -209,10 +215,9 @@ class AppState extends ChangeNotifier {
       );
     }).toList();
 
-    _logMessage('Providing ${ollamaTools.length} tool(s) to the LLM.');
-
-    // 2. Initialize the conversation history.
-    final messages = [Message(role: MessageRole.user, content: prompt)];
+    // 2. Add user message to the conversation history.
+    _conversationHistory.add(Message(role: MessageRole.user, content: prompt));
+    notifyListeners();
 
     try {
       // 3. Loop to handle multiple rounds of tool calls.
@@ -220,7 +225,7 @@ class AppState extends ChangeNotifier {
         // Limit to 5 rounds to prevent infinite loops
         final request = GenerateChatCompletionRequest(
           model: modelName,
-          messages: messages,
+          messages: _conversationHistory, // Use the class member for history
           tools: ollamaTools,
           think: false,
         );
@@ -228,7 +233,7 @@ class AppState extends ChangeNotifier {
         final res =
             await _ollamaClient!.generateChatCompletion(request: request);
         final messageFromLlm = res.message;
-        messages.add(messageFromLlm); // Add LLM's response to history
+        _conversationHistory.add(messageFromLlm); // Add LLM's response to history
 
         // 4. Check if the LLM's response contains tool calls.
         if (messageFromLlm.toolCalls == null ||
@@ -293,7 +298,7 @@ class AppState extends ChangeNotifier {
 
         // 6. Wait for all tool calls to execute and add their results to the history.
         final toolResults = await Future.wait(toolCallFutures);
-        messages.addAll(toolResults);
+        _conversationHistory.addAll(toolResults);
 
         _logMessage(
             'Sending ${toolResults.length} tool result(s) back to LLM...');
@@ -498,11 +503,30 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                   ),
                   const Divider(height: 32),
-                  ElevatedButton(
-                    onPressed: appState.isConnected
-                        ? appStateNotifier.listTools
-                        : null,
-                    child: const Text('List Available Tools'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: appState.isConnected
+                              ? appStateNotifier.listTools
+                              : null,
+                          child: const Text('List Available Tools'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: appState.isConnected
+                              ? appStateNotifier.clearConversation
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber.shade700,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('New Conversation'),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   if (appState.availableTools.isNotEmpty)
